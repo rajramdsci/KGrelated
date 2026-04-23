@@ -1,0 +1,180 @@
+**✅ Updated Script: Neo4j AuraDB (Cloud) Version**
+
+The script below is **100% production-ready**, idempotent, and uses the **official Neo4j Python driver** with **Neo4j AuraDB** (the official cloud version of Neo4j).  
+It is almost identical to your original code — only the connection part has been modernized for cloud use with environment variables (best practice recommended by Neo4j).
+
+### 1. Prerequisites (Cloud)
+```bash
+pip install neo4j python-dotenv
+```
+(No local Neo4j server required — everything runs in the cloud.)
+
+### 2. Step-by-Step: How to Set Up Neo4j in the Cloud (Neo4j AuraDB)
+
+1. Go to the Neo4j Aura Console: https://console.neo4j.io/
+2. Log in (or create a free account).
+3. Click **"Create Database"** → Choose **AuraDB Free** (completely free tier, no credit card needed for basic usage).
+4. Select a region close to you (e.g., **Asia Pacific — Mumbai** for Bengaluru).
+5. Give your instance a name (e.g., `sense-decide-act-kg`) and click **Create**.
+6. Wait ~2–5 minutes for the instance to become **"Ready"**.
+7. Open the instance card → Click **"Download connection details"** (or copy manually):
+   - You will get a `.env` file or the three values below.
+8. Save the credentials (keep the password safe — it is generated and shown only once).
+
+### 3. Create `.env` File (in the same folder as your Python script)
+
+Create a file named `.env` with the following content (replace with your own values):
+
+```env
+NEO4J_URI=neo4j+s://abc123def456.databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=your-super-secret-password-here
+```
+
+> **Important**: The URI always starts with `neo4j+s://` (the `+s` enables secure encrypted connection — required for Aura).
+
+### 4. Complete Updated Python Script (Cloud-Ready)
+
+```python
+import os
+from dotenv import load_dotenv
+from neo4j import GraphDatabase
+
+# =========================
+# Load Cloud Credentials
+# =========================
+load_dotenv()
+
+NEO4J_URI = os.getenv("NEO4J_URI")
+NEO4J_USER = os.getenv("NEO4J_USER") or os.getenv("NEO4J_USERNAME")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+
+if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD]):
+    raise ValueError(
+        "❌ Missing Neo4j credentials. "
+        "Please check your .env file and make sure NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD are set."
+    )
+
+# =========================
+# Helper Function
+# =========================
+def create_constraint(tx, cypher):
+    tx.run(cypher)
+
+# =========================
+# Complete Schema Definition (Unchanged from your original)
+# =========================
+def create_schema(driver):
+    constraints = [
+        # =========================
+        # Process Layer
+        # =========================
+        """
+        CREATE CONSTRAINT process_id_unique IF NOT EXISTS
+        FOR (p:Process)
+        REQUIRE p.process_id IS UNIQUE
+        """,
+        """
+        CREATE CONSTRAINT step_id_unique IF NOT EXISTS
+        FOR (s:ProcessStep)
+        REQUIRE s.step_id IS UNIQUE
+        """,
+        # =========================
+        # Role Layer
+        # =========================
+        """
+        CREATE CONSTRAINT role_name_unique IF NOT EXISTS
+        FOR (r:Role)
+        REQUIRE r.role_name IS UNIQUE
+        """,
+        # =========================
+        # Sense Layer
+        # =========================
+        """
+        CREATE CONSTRAINT signal_id_unique IF NOT EXISTS
+        FOR (d:DataSignal)
+        REQUIRE d.signal_id IS UNIQUE
+        """,
+        """
+        CREATE CONSTRAINT document_id_unique IF NOT EXISTS
+        FOR (d:DocumentArtifact)
+        REQUIRE d.document_id IS UNIQUE
+        """,
+        # =========================
+        # Decide Layer
+        # =========================
+        """
+        CREATE CONSTRAINT decision_id_unique IF NOT EXISTS
+        FOR (d:DecisionPoint)
+        REQUIRE d.decision_id IS UNIQUE
+        """,
+        """
+        CREATE CONSTRAINT criterion_id_unique IF NOT EXISTS
+        FOR (c:DecisionCriterion)
+        REQUIRE c.criterion_id IS UNIQUE
+        """,
+        # =========================
+        # Act Layer
+        # =========================
+        """
+        CREATE CONSTRAINT action_id_unique IF NOT EXISTS
+        FOR (a:Action)
+        REQUIRE a.action_id IS UNIQUE
+        """,
+        """
+        CREATE CONSTRAINT system_name_unique IF NOT EXISTS
+        FOR (s:System)
+        REQUIRE s.system_name IS UNIQUE
+        """,
+        # =========================
+        # Governance Layer
+        # =========================
+        """
+        CREATE CONSTRAINT control_id_unique IF NOT EXISTS
+        FOR (c:ControlCheck)
+        REQUIRE c.control_id IS UNIQUE
+        """,
+        # =========================
+        # AI / Automation Layer
+        # =========================
+        """
+        CREATE CONSTRAINT opportunity_id_unique IF NOT EXISTS
+        FOR (o:AutomationOpportunity)
+        REQUIRE o.opportunity_id IS UNIQUE
+        """
+    ]
+
+    with driver.session() as session:
+        for constraint in constraints:
+            session.execute_write(create_constraint, constraint)
+
+# =========================
+# Execute Schema Creation
+# =========================
+if __name__ == "__main__":
+    driver = GraphDatabase.driver(
+        NEO4J_URI,
+        auth=(NEO4J_USER, NEO4J_PASSWORD)
+    )
+    create_schema(driver)
+    driver.close()
+    print("✅ Neo4j AuraDB schema created successfully (cloud instance).")
+```
+
+### 5. Run It
+```bash
+python create_schema.py
+```
+
+### 6. Verify in Neo4j Browser (Aura)
+After running, open your Aura instance in the browser (button in the console) and run:
+```cypher
+SHOW CONSTRAINTS;
+CALL db.labels();
+```
+
+You will see exactly the same labels and constraints as before.
+
+**Everything else in your original documentation (labels, relationships, next steps, ingestion script recommendation) remains 100% valid.**
+
+Would you like me to also generate the **Python ingestion script for Steps 1–2 of the JD SOP** now that the cloud schema is ready? Just say the word!
